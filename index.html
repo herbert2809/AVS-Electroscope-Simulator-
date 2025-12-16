@@ -3,10 +3,511 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Electroscope Simulator</title>
+    <title>AVS Electroscope Simulator</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --muted: #475569;
+        --shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      button, input { font: inherit; }
+      a { color: inherit; }
+    </style>
   </head>
+
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Single-file React app: React + ReactDOM from CDN + HTM (JSX-like without build) -->
+    <script type="module">
+      import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
+      import ReactDOM from "https://esm.sh/react-dom@18.3.1/client";
+      import htm from "https://esm.sh/htm@3.1.1";
+
+      const html = htm.bind(React.createElement);
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+      function ElectroscopeSim() {
+        const [wandPosition, setWandPosition] = useState(100); // 0 touch, 100 far
+        const [wandPolarity, setWandPolarity] = useState("negative"); // positive|negative
+        const [storedCharge, setStoredCharge] = useState(0); // -100..100
+        const [showHelp, setShowHelp] = useState(true);
+        const [showLabels, setShowLabels] = useState(false);
+
+        const MAX_LEAF_ANGLE = 45;
+        const TOUCH_THRESHOLD = 2;
+        const MAX_TRANSFERABLE = 80;
+        const STEP_PER_TICK = 5;
+        const TICK_MS = 50;
+
+        const ENABLE_LEAK = false; // set true if you want slow discharge when not touching
+        const LEAK_STEP = 1;
+
+        const isTouching = wandPosition <= TOUCH_THRESHOLD;
+
+        const wandSvgX = useMemo(() => 230 + wandPosition * 2.2, [wandPosition]);
+
+        useEffect(() => {
+          const id = setInterval(() => {
+            setStoredCharge((prev) => {
+              let next = prev;
+
+              if (isTouching) {
+                const target = wandPolarity === "positive" ? MAX_TRANSFERABLE : -MAX_TRANSFERABLE;
+                if (next < target) next = Math.min(next + STEP_PER_TICK, target);
+                if (next > target) next = Math.max(next - STEP_PER_TICK, target);
+              } else if (ENABLE_LEAK) {
+                if (next > 0) next = Math.max(0, next - LEAK_STEP);
+                if (next < 0) next = Math.min(0, next + LEAK_STEP);
+              }
+              return next === prev ? prev : next;
+            });
+          }, TICK_MS);
+          return () => clearInterval(id);
+        }, [isTouching, wandPolarity]);
+
+        const inductionStrength = useMemo(() => {
+          const closeness = clamp((100 - wandPosition) / 100, 0, 1);
+          return closeness; // 0..1
+        }, [wandPosition]);
+
+        const leafAngle = useMemo(() => {
+          const chargeAngle = (Math.abs(storedCharge) / 100) * MAX_LEAF_ANGLE;
+          const inductionAngle = inductionStrength * 12;
+          const combined = chargeAngle + (storedCharge === 0 ? inductionAngle * 0.7 : inductionAngle * 0.25);
+          return clamp(combined, 0, MAX_LEAF_ANGLE);
+        }, [storedCharge, inductionStrength]);
+
+        const handleGround = () => setStoredCharge(0);
+
+        const chargeSymbol = storedCharge > 0 ? "+" : "−";
+        const chargeColor = storedCharge > 0 ? "#dc2626" : "#2563eb";
+
+        const Label = ({ x, y, text, align = "left" }) => html`
+          <g style=${{ pointerEvents: "none" }}>
+            <circle cx=${x} cy=${y} r="3" fill="#3b82f6" />
+            <line
+              x1=${x}
+              y1=${y}
+              x2=${align === "left" ? x - 40 : x + 40}
+              y2=${y}
+              stroke="#3b82f6"
+              stroke-width="1"
+            />
+            <text
+              x=${align === "left" ? x - 45 : x + 45}
+              y=${y + 4}
+              text-anchor=${align === "left" ? "end" : "start"}
+              font-size="14"
+              fill="#1e293b"
+              font-weight="600"
+            >
+              ${text}
+            </text>
+          </g>
+        `;
+
+        return html`
+          <div style=${styles.page}>
+            ${showHelp &&
+            html`
+              <div style=${styles.modalBackdrop}>
+                <div style=${styles.modal}>
+                  <h2 style=${styles.modalTitle}>
+                    <span style=${styles.badge}>⚡</span>
+                    How to Use
+                  </h2>
+                  <div style=${styles.modalBody}>
+                    <p><b>1)</b> Select the <b>Wand Charge Type</b> (Positive or Negative).</p>
+                    <p><b>2)</b> Move the slider left to bring the wand closer.</p>
+                    <p><b>3)</b> Touch the sphere to transfer charge. The leaves repel because like charges repel.</p>
+                    <p><b>4)</b> Click <b>Ground (Reset)</b> to discharge.</p>
+                  </div>
+                  <button style=${styles.primaryBtn} onClick=${() => setShowHelp(false)}>Continue</button>
+                </div>
+              </div>
+            `}
+
+            <div style=${styles.header}>
+              <h1 style=${styles.title}>Electroscope Simulator</h1>
+              <p style=${styles.subtitle}>
+                An electroscope detects electric charge. Touch the metal sphere to transfer charge to the leaves.
+              </p>
+            </div>
+
+            <div style=${styles.layout}>
+              <div style=${styles.canvas}>
+                <svg viewBox="0 0 400 500" style=${{ width: "100%", height: "100%" }}>
+                  <!-- Glass Jar -->
+                  <path
+                    d="M 120 180 L 120 450 Q 120 480 200 480 Q 280 480 280 450 L 280 180 Z"
+                    fill="rgba(220, 240, 255, 0.3)"
+                    stroke="#94a3b8"
+                    stroke-width="2"
+                  />
+                  <ellipse
+                    cx="200"
+                    cy="180"
+                    rx="80"
+                    ry="20"
+                    fill="rgba(200, 230, 255, 0.4)"
+                    stroke="#94a3b8"
+                    stroke-width="2"
+                  />
+
+                  <!-- Stopper -->
+                  <rect x="180" y="160" width="40" height="40" fill="#475569" rx="2" />
+
+                  <!-- Rod -->
+                  <rect x="195" y="100" width="10" height="200" fill="#cbd5e1" stroke="#64748b" />
+
+                  <!-- Leaves -->
+                  <g transform="translate(200, 300)">
+                    <g transform=${`rotate(-${leafAngle})`}>
+                      <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2" />
+                      ${Math.abs(storedCharge) > 10 &&
+                      html`<text x="-15" y="60" font-size="20" fill=${chargeColor} font-weight="bold">
+                        ${chargeSymbol}
+                      </text>`}
+                    </g>
+
+                    <g transform=${`rotate(${leafAngle})`}>
+                      <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2" />
+                      ${Math.abs(storedCharge) > 10 &&
+                      html`<text x="5" y="60" font-size="20" fill=${chargeColor} font-weight="bold">
+                        ${chargeSymbol}
+                      </text>`}
+                    </g>
+                  </g>
+
+                  <!-- Sphere -->
+                  <defs>
+                    <radialGradient id="sphereGradient" cx="30%" cy="30%">
+                      <stop offset="0%" stop-color="#f1f5f9" />
+                      <stop offset="100%" stop-color="#64748b" />
+                    </radialGradient>
+                  </defs>
+                  <circle cx="200" cy="80" r="30" fill="url(#sphereGradient)" stroke="#94a3b8" />
+
+                  ${Math.abs(storedCharge) > 5 &&
+                  html`<text x="188" y="90" font-size="24" fill=${chargeColor} font-weight="bold">
+                    ${chargeSymbol}
+                  </text>`}
+
+                  <!-- Wand -->
+                  <g transform=${`translate(${wandSvgX}, 60)`}>
+                    <rect
+                      x="0"
+                      y="0"
+                      width="200"
+                      height="40"
+                      rx="20"
+                      fill=${wandPolarity === "positive" ? "#fee2e2" : "#dbeafe"}
+                      stroke=${wandPolarity === "positive" ? "#fca5a5" : "#93c5fd"}
+                      stroke-width="2"
+                    />
+                    <path
+                      d="M 0 0 L 40 0 L 40 40 L 0 40 A 20 20 0 0 1 0 0"
+                      fill=${wandPolarity === "positive" ? "#ef4444" : "#3b82f6"}
+                    />
+                    <text x="8" y="26" font-size="20" fill="white" font-weight="bold">
+                      ${wandPolarity === "positive" ? "+" : "−"}
+                    </text>
+                    <text x="22" y="26" font-size="20" fill="white" font-weight="bold">
+                      ${wandPolarity === "positive" ? "+" : "−"}
+                    </text>
+                    ${isTouching && html`<circle cx="0" cy="20" r="15" fill="yellow" opacity="0.6" />`}
+                  </g>
+
+                  <!-- Labels -->
+                  ${showLabels &&
+                  html`
+                    <g>
+                      <${Label} x=${168} y=${70} text="Metal Sphere" align="left" />
+                      <${Label} x=${282} y=${350} text="Glass Jar" align="right" />
+                      <${Label} x=${200} y=${380} text="Gold Leaves" align="right" />
+                    </g>
+                  `}
+                </svg>
+              </div>
+
+              <div style=${styles.panel}>
+                <div style=${styles.card}>
+                  <div style=${styles.cardHeader}>
+                    <h2 style=${styles.cardTitle}>Controls</h2>
+                    <button style=${styles.helpBtn} onClick=${() => setShowHelp(true)}>? Instructions</button>
+                  </div>
+
+                  <div style=${styles.row}>
+                    <span style=${{ fontWeight: 600 }}>Show Component Labels</span>
+                    <button
+                      style=${{
+                        ...styles.toggle,
+                        background: showLabels ? "#4f46e5" : "#cbd5e1",
+                      }}
+                      onClick=${() => setShowLabels((v) => !v)}
+                      aria-label="Toggle labels"
+                    >
+                      <span
+                        style=${{
+                          ...styles.toggleKnob,
+                          transform: showLabels ? "translateX(22px)" : "translateX(0px)",
+                        }}
+                      ></span>
+                    </button>
+                  </div>
+
+                  <div style=${{ marginTop: 16 }}>
+                    <div style=${styles.rowBetween}>
+                      <label style=${{ fontWeight: 600 }}>Position Control</label>
+                      <span style=${styles.pill}>
+                        ${isTouching ? "TOUCHING" : `DISTANCE: ${wandPosition}`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value=${wandPosition}
+                      onInput=${(e) => setWandPosition(Number(e.target.value))}
+                      style=${{ width: "100%" }}
+                    />
+                    <div style=${{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                      Move slider to 0 to touch the sphere.
+                    </div>
+                  </div>
+
+                  <div style=${{ marginTop: 16 }}>
+                    <div style=${{ fontWeight: 600, marginBottom: 8 }}>Wand Charge Type</div>
+                    <div style=${styles.segment}>
+                      <button
+                        style=${{
+                          ...styles.segmentBtn,
+                          ...(wandPolarity === "negative" ? styles.segmentActive : null),
+                          color: wandPolarity === "negative" ? "#2563eb" : "#334155",
+                        }}
+                        onClick=${() => setWandPolarity("negative")}
+                      >
+                        Negative (−)
+                      </button>
+                      <button
+                        style=${{
+                          ...styles.segmentBtn,
+                          ...(wandPolarity === "positive" ? styles.segmentActive : null),
+                          color: wandPolarity === "positive" ? "#dc2626" : "#334155",
+                        }}
+                        onClick=${() => setWandPolarity("positive")}
+                      >
+                        Positive (+)
+                      </button>
+                    </div>
+                  </div>
+
+                  <button style=${styles.resetBtn} onClick=${handleGround}>Ground (Reset)</button>
+                </div>
+
+                <div style=${styles.info}>
+                  <h3 style=${{ margin: 0, marginBottom: 8 }}>Current State</h3>
+                  <div style=${{ fontSize: 14 }}>
+                    <div><b>Charge Level:</b> ${Math.abs(storedCharge) < 5 ? "Neutral" : "Charged"}</div>
+                    <div style=${{ marginTop: 6 }}>
+                      <b>Leaf Position:</b> ${leafAngle < 2 ? "Vertical (Relaxed)" : "Separated (Repelling)"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function App() {
+        // Nếu sau này bạn có nhiều mô phỏng khác, bạn có thể thêm menu ở đây
+        return html`<${ElectroscopeSim} />`;
+      }
+
+      const styles = {
+        page: { minHeight: "100vh", padding: 16 },
+        header: { maxWidth: 960, margin: "0 auto 16px auto", textAlign: "center" },
+        title: { margin: 0, fontSize: 32, fontWeight: 900 },
+        subtitle: { marginTop: 8, color: "var(--muted)" },
+
+        layout: {
+          maxWidth: 1100,
+          margin: "0 auto",
+          display: "flex",
+          gap: 24,
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+        },
+
+        canvas: {
+          flex: "1 1 640px",
+          height: 520,
+          background: "var(--card)",
+          border: "1px solid var(--border)",
+          borderRadius: 16,
+          boxShadow: "var(--shadow)",
+          padding: 12,
+        },
+
+        panel: { flex: "0 1 360px", display: "flex", flexDirection: "column", gap: 16 },
+
+        card: {
+          background: "var(--card)",
+          border: "1px solid var(--border)",
+          borderRadius: 16,
+          padding: 16,
+          boxShadow: "0 8px 30px rgba(15,23,42,0.06)",
+        },
+
+        cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+        cardTitle: { margin: 0, fontSize: 18, fontWeight: 900 },
+
+        helpBtn: {
+          border: "1px solid #c7d2fe",
+          background: "#eef2ff",
+          color: "#4338ca",
+          padding: "6px 10px",
+          borderRadius: 999,
+          fontWeight: 800,
+          cursor: "pointer",
+          fontSize: 12,
+        },
+
+        row: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 },
+        rowBetween: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+
+        pill: {
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          background: "#f1f5f9",
+          border: "1px solid var(--border)",
+          padding: "4px 8px",
+          borderRadius: 10,
+          fontSize: 12,
+        },
+
+        toggle: {
+          width: 44,
+          height: 24,
+          borderRadius: 999,
+          border: "none",
+          padding: 2,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+        },
+
+        toggleKnob: {
+          width: 20,
+          height: 20,
+          background: "white",
+          borderRadius: 999,
+          transition: "transform 150ms ease",
+        },
+
+        segment: {
+          display: "flex",
+          gap: 6,
+          background: "#f1f5f9",
+          border: "1px solid var(--border)",
+          padding: 6,
+          borderRadius: 12,
+        },
+
+        segmentBtn: {
+          flex: 1,
+          border: "none",
+          background: "transparent",
+          padding: "10px 10px",
+          borderRadius: 10,
+          cursor: "pointer",
+          fontWeight: 800,
+        },
+
+        segmentActive: {
+          background: "white",
+          boxShadow: "0 2px 10px rgba(15,23,42,0.08)",
+        },
+
+        resetBtn: {
+          width: "100%",
+          marginTop: 16,
+          padding: "12px 12px",
+          borderRadius: 12,
+          border: "none",
+          background: "#0f172a",
+          color: "white",
+          fontWeight: 900,
+          cursor: "pointer",
+        },
+
+        info: {
+          background: "#eff6ff",
+          border: "1px solid #dbeafe",
+          borderRadius: 16,
+          padding: 16,
+          color: "#1e3a8a",
+        },
+
+        modalBackdrop: {
+          position: "fixed",
+          inset: 0,
+          background: "rgba(15,23,42,0.6)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 16,
+          zIndex: 50,
+        },
+
+        modal: {
+          width: "100%",
+          maxWidth: 560,
+          background: "white",
+          borderRadius: 20,
+          padding: 20,
+          border: "1px solid var(--border)",
+          boxShadow: "0 18px 60px rgba(15,23,42,0.35)",
+        },
+
+        modalTitle: {
+          margin: 0,
+          fontSize: 22,
+          fontWeight: 900,
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+        },
+
+        badge: { background: "#e0e7ff", color: "#4338ca", padding: "6px 10px", borderRadius: 12 },
+
+        modalBody: { marginTop: 12, color: "#334155", lineHeight: 1.6 },
+
+        primaryBtn: {
+          marginTop: 14,
+          width: "100%",
+          padding: "12px 12px",
+          border: "none",
+          borderRadius: 14,
+          background: "#4f46e5",
+          color: "white",
+          fontWeight: 900,
+          cursor: "pointer",
+        },
+      };
+
+      ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+    </script>
   </body>
 </html>
