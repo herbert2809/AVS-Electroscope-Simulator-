@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Electroscope Simulator</title>
   <style>
     :root{
@@ -38,14 +38,14 @@
     .seg{display:flex;gap:8px;background:#f1f5f9;border:1px solid var(--border);padding:6px;border-radius:12px}
     .seg button{
       flex:1;border:0;background:transparent;padding:10px;border-radius:10px;cursor:pointer;
-      font-weight:700;color:var(--muted);
+      font-weight:800;color:var(--muted);
     }
     .seg button.active{background:var(--card);box-shadow:0 6px 14px rgba(15,23,42,.08)}
     .seg button.neg.active{color:var(--blue)}
     .seg button.pos.active{color:var(--red)}
     .btn{
       width:100%;padding:12px 14px;border-radius:12px;border:1px solid #0f172a;background:#0f172a;
-      color:#fff;font-weight:800;cursor:pointer;
+      color:#fff;font-weight:900;cursor:pointer;
     }
     .btn:hover{filter:brightness(1.05)}
     .status{margin-top:12px;background:#eff6ff;border:1px solid #dbeafe;color:#1e3a8a;border-radius:var(--radius);padding:14px 16px}
@@ -70,23 +70,27 @@
 </head>
 
 <body>
-  <noscript>Bạn đang tắt JavaScript nên mô phỏng không thể chạy. Hãy bật JavaScript và tải lại trang.</noscript>
+  <noscript>
+    JavaScript is disabled, so the simulation cannot run. Please enable JavaScript and reload the page.
+  </noscript>
 
   <div class="modal open" id="helpModal" role="dialog" aria-modal="true">
     <div class="modal-card">
-      <h3>⚡ Hướng dẫn sử dụng</h3>
-      <p><b>1)</b> Chọn loại điện tích của thanh (Âm / Dương).</p>
-      <p><b>2)</b> Kéo “Khoảng cách” về 0 để chạm quả cầu.</p>
-      <p><b>3)</b> Khi chạm, điện tích truyền xuống → 2 lá vàng đẩy nhau.</p>
-      <p><b>4)</b> Nhấn “Nối đất (Reset)” để trung hoà.</p>
-      <button class="btn2" id="startBtn">Bắt đầu</button>
+      <h3>⚡ How to Use</h3>
+      <p><b>1)</b> Choose the wand charge type (Negative / Positive).</p>
+      <p><b>2)</b> Drag the distance slider to <b>0</b> to touch the metal sphere.</p>
+      <p><b>3)</b> When touching, charge transfers → the two gold leaves repel and spread apart.</p>
+      <p><b>4)</b> Press <b>Ground (Reset)</b> to neutralize the electroscope.</p>
+      <button class="btn2" id="startBtn" type="button">Start</button>
     </div>
   </div>
 
   <div class="wrap">
     <div class="hero">
       <h1>Electroscope Simulator</h1>
-      <p>Mô phỏng điện nghiệm: chạm quả cầu → truyền điện tích → lá vàng xòe ra do cùng dấu đẩy nhau.</p>
+      <p>
+        An electroscope detects electric charge. Touch the sphere to transfer charge and observe leaf repulsion.
+      </p>
     </div>
 
     <div class="grid">
@@ -100,19 +104,19 @@
             </radialGradient>
           </defs>
 
-          <!-- Glass Jar -->
+          <!-- Glass jar -->
           <path d="M 120 180 L 120 450 Q 120 480 200 480 Q 280 480 280 450 L 280 180 Z"
                 fill="rgba(220, 240, 255, 0.3)" stroke="#94a3b8" stroke-width="2"></path>
           <ellipse cx="200" cy="180" rx="80" ry="20"
                    fill="rgba(200, 230, 255, 0.4)" stroke="#94a3b8" stroke-width="2"></ellipse>
 
-          <!-- Stopper -->
+          <!-- Rubber stopper -->
           <rect x="180" y="160" width="40" height="40" fill="#475569" rx="2"></rect>
 
-          <!-- Metal Rod -->
+          <!-- Metal rod -->
           <rect x="195" y="100" width="10" height="200" fill="#cbd5e1" stroke="#64748b"></rect>
 
-          <!-- Leaves -->
+          <!-- Leaves group -->
           <g id="leaves" transform="translate(200, 300)">
             <g id="leafLeft">
               <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2"></rect>
@@ -124,7 +128,7 @@
             </g>
           </g>
 
-          <!-- Sphere -->
+          <!-- Metal sphere -->
           <circle cx="200" cy="80" r="30" fill="url(#sphereGradient)" stroke="#94a3b8"></circle>
           <text id="sphereSign" x="188" y="90" font-size="24" font-weight="900" opacity="0">+</text>
 
@@ -143,55 +147,56 @@
       <!-- CONTROLS -->
       <div class="card panel">
         <div class="row">
-          <h2>Điều khiển</h2>
-          <button id="helpBtn" class="pill" style="cursor:pointer" type="button">? Hướng dẫn</button>
+          <h2>Controls</h2>
+          <button id="helpBtn" class="pill" type="button">? Help</button>
         </div>
 
         <div class="row" style="margin-top:0;">
           <div style="width:100%;">
             <div class="row" style="margin:0 0 6px;">
-              <div style="font-weight:800; color:var(--muted); font-size:13px;">Khoảng cách</div>
-              <div class="pill" id="distancePill">KHOẢNG CÁCH: 100</div>
+              <div style="font-weight:900; color:var(--muted); font-size:13px;">Distance</div>
+              <div class="pill" id="distancePill">DISTANCE: 100</div>
             </div>
             <input id="distance" type="range" min="0" max="100" value="100" />
-            <div style="margin-top:6px; color:#94a3b8; font-size:12px;">Kéo về 0 để chạm vào quả cầu.</div>
+            <div style="margin-top:6px; color:#94a3b8; font-size:12px;">Drag to 0 to touch the sphere.</div>
           </div>
         </div>
 
         <div style="margin-top:14px;">
-          <div style="font-weight:800; color:var(--muted); font-size:13px; margin-bottom:8px;">Loại điện tích thanh</div>
+          <div style="font-weight:900; color:var(--muted); font-size:13px; margin-bottom:8px;">Wand charge</div>
           <div class="seg">
-            <button id="negBtn" class="neg active" type="button">Âm (−)</button>
-            <button id="posBtn" class="pos" type="button">Dương (+)</button>
+            <button id="negBtn" class="neg active" type="button">Negative (−)</button>
+            <button id="posBtn" class="pos" type="button">Positive (+)</button>
           </div>
         </div>
 
         <div style="margin-top:14px;">
-          <button id="resetBtn" class="btn" type="button">Nối đất (Reset)</button>
+          <button id="resetBtn" class="btn" type="button">Ground (Reset)</button>
         </div>
 
         <div class="status">
-          <b>Trạng thái hiện tại</b>
+          <b>Current state</b>
           <ul>
-            <li><span id="chargeText">Điện tích: Trung hòa</span></li>
-            <li><span id="leafText">Trạng thái lá: Khép lại</span></li>
+            <li><span id="chargeText">Charge: Neutral</span></li>
+            <li><span id="leafText">Leaves: Closed</span></li>
           </ul>
         </div>
 
         <div style="margin-top:12px; color:#94a3b8; font-size:12px;">
-          Mẹo: Nếu trang vẫn trắng, nhấn F12 → Console để xem lỗi JS (nhưng bản này thường “im như thóc”).
+          Tip: If you still see a blank page, open DevTools (F12) → Console to check for JavaScript errors.
+          This version avoids external dependencies, so it should be very reliable on school networks.
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // ===== Stable + fast engine: no frameworks, no CDN =====
+    // ===== Stable + fast engine: no frameworks, no external CDN =====
 
     // State
-    let wandPosition = 100;           // 0..100 (0 = chạm)
-    let wandPolarity = "negative";    // "negative" | "positive"
-    let electroscopeCharge = 0;       // -80..+80
+    let wandPosition = 100;            // 0..100 (0 = touching)
+    let wandPolarity = "negative";     // "negative" | "positive"
+    let electroscopeCharge = 0;        // -80..+80
 
     // Constants
     const MAX_LEAF_ANGLE = 45;
@@ -255,15 +260,15 @@
       const touching = isTouchingNow();
       const angle = computeAngle();
 
-      // Leaves
+      // Leaves rotation
       leafLeft.setAttribute("transform", `rotate(${-angle})`);
       leafRight.setAttribute("transform", `rotate(${angle})`);
 
-      // Wand translate (giữ mapping bạn đang dùng: 230..450)
+      // Wand position (same mapping you used: 230..450)
       const wandSvgX = 230 + (wandPosition * 2.2);
       wand.setAttribute("transform", `translate(${wandSvgX}, 60)`);
 
-      // Wand colors/signs
+      // Wand styling & symbols
       const isPos = wandPolarity === "positive";
       wandBody.setAttribute("fill", isPos ? "#fee2e2" : "#dbeafe");
       wandBody.setAttribute("stroke", isPos ? "#fca5a5" : "#93c5fd");
@@ -277,10 +282,14 @@
       // Charge signs
       const show = Math.abs(electroscopeCharge) > 10;
       const sign = electroscopeCharge > 0 ? "+" : "−";
-      const signColor = electroscopeCharge > 0 ? getComputedStyle(document.documentElement).getPropertyValue("--red").trim()
-                                               : getComputedStyle(document.documentElement).getPropertyValue("--blue").trim();
+      const signColor = electroscopeCharge > 0
+        ? getComputedStyle(document.documentElement).getPropertyValue("--red").trim()
+        : getComputedStyle(document.documentElement).getPropertyValue("--blue").trim();
 
-      signLeft.textContent = sign; signRight.textContent = sign; sphereSign.textContent = sign;
+      signLeft.textContent = sign;
+      signRight.textContent = sign;
+      sphereSign.textContent = sign;
+
       signLeft.setAttribute("fill", signColor);
       signRight.setAttribute("fill", signColor);
       sphereSign.setAttribute("fill", signColor);
@@ -290,18 +299,17 @@
       sphereSign.setAttribute("opacity", Math.abs(electroscopeCharge) > 5 ? "1" : "0");
 
       // UI text
-      distancePill.textContent = touching ? "ĐANG CHẠM" : `KHOẢNG CÁCH: ${wandPosition}`;
+      distancePill.textContent = touching ? "TOUCHING" : `DISTANCE: ${wandPosition}`;
       distancePill.classList.toggle("ok", touching);
 
-      chargeText.textContent = `Điện tích: ${Math.abs(electroscopeCharge) < 5 ? "Trung hòa" : "Đang nhiễm điện"}`;
-      leafText.textContent = `Trạng thái lá: ${angle < 2 ? "Khép lại" : "Tách ra (Đẩy nhau)"}`;
+      chargeText.textContent = `Charge: ${Math.abs(electroscopeCharge) < 5 ? "Neutral" : "Charged"}`;
+      leafText.textContent = `Leaves: ${angle < 2 ? "Closed" : "Separated (Repelling)"}`;
     }
 
     // Events
     distance.addEventListener("input", (e) => {
       wandPosition = Number(e.target.value);
-      // render ngay để UI phản hồi tức thì
-      render();
+      render(); // instant feedback
     });
 
     negBtn.addEventListener("click", () => {
@@ -326,7 +334,7 @@
     startBtn.addEventListener("click", () => helpModal.classList.remove("open"));
     helpBtn.addEventListener("click", () => helpModal.classList.add("open"));
 
-    // Main loop: nhẹ, ổn định
+    // Main loop (light + stable)
     function tick(){
       stepPhysics();
       render();
