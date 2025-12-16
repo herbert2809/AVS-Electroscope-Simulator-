@@ -13,24 +13,23 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* Hiệu ứng animation cơ bản */
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-900">
     
     <div id="root"></div>
 
     <script type="text/babel">
-        // Lấy các hàm từ React global object thay vì import
         const { useState, useEffect } = React;
 
-        // --- COMPONENT PHỤ: Label ---
+        // --- COMPONENT: Label ---
         const Label = ({ x, y, text, align = 'left' }) => (
-            <g className="animate-in fade-in duration-500 pointer-events-none">
+            <g className="animate-in pointer-events-none">
                 <circle cx={x} cy={y} r="3" fill="#3b82f6" />
                 <line 
                     x1={x} y1={y} 
@@ -53,9 +52,8 @@
             </g>
         );
 
-        // --- COMPONENT CHÍNH: ElectroscopeSim ---
+        // --- COMPONENT: ElectroscopeSim ---
         const ElectroscopeSim = () => {
-            // State
             const [wandPosition, setWandPosition] = useState(100); 
             const [wandPolarity, setWandPolarity] = useState('negative');
             const [electroscopeCharge, setElectroscopeCharge] = useState(0); 
@@ -63,7 +61,6 @@
             const [showHelp, setShowHelp] = useState(true); 
             const [showLabels, setShowLabels] = useState(false); 
             
-            // Constants
             const MAX_LEAF_ANGLE = 45; 
             const TOUCH_THRESHOLD = 2; 
 
@@ -103,36 +100,190 @@
             const wandSvgX = 230 + (wandPosition * 2.2); 
 
             return (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4 font-sans text-slate-800 relative">
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 relative">
                 
-                {/* --- INSTRUCTION MODAL --- */}
-                {showHelp && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 border border-slate-200 animate-in">
-                        <h2 className="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <span className="bg-indigo-100 text-indigo-600 p-2 rounded-lg">⚡</span> 
-                        Hướng dẫn sử dụng
-                        </h2>
-                        <div className="space-y-4 text-slate-600 mb-8">
-                        <div className="flex gap-3">
-                            <div className="font-bold text-slate-400">1</div>
-                            <p>Chọn <strong>Loại Điện Tích</strong> (Dương hoặc Âm) bằng nút bấm.</p>
+                    {/* --- INSTRUCTION MODAL --- */}
+                    {showHelp && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 border border-slate-200 animate-in">
+                                <h2 className="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <span className="bg-indigo-100 text-indigo-600 p-2 rounded-lg">⚡</span> 
+                                    Hướng dẫn sử dụng
+                                </h2>
+                                <div className="space-y-4 text-slate-600 mb-8">
+                                    <div className="flex gap-3">
+                                        <div className="font-bold text-slate-400">1</div>
+                                        <p>Chọn <strong>Loại Điện Tích</strong> (Dương hoặc Âm).</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <div className="font-bold text-slate-400">2</div>
+                                        <p>Kéo <strong>Thanh trượt</strong> sang trái để đưa thanh nhiễm điện lại gần.</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <div className="font-bold text-slate-400">3</div>
+                                        <p>Chạm vào quả cầu để truyền điện tích và xem hai lá kim loại <strong>đẩy nhau</strong>.</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <div className="font-bold text-slate-400">4</div>
+                                        <p>Nhấn <strong>Nối đất (Reset)</strong> để trung hòa.</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setShowHelp(false)}
+                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-200"
+                                >
+                                    Bắt đầu thí nghiệm
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex gap-3">
-                            <div className="font-bold text-slate-400">2</div>
-                            <p>Kéo <strong>Thanh trượt khoảng cách</strong> sang trái để đưa thanh nhiễm điện lại gần quả cầu.</p>
+                    )}
+
+                    {/* Header */}
+                    <div className="max-w-3xl w-full mb-6 text-center">
+                        <h1 className="text-3xl font-bold text-slate-900 mb-2">Mô Phỏng Điện Nghiệm</h1>
+                        <p className="text-slate-600 leading-relaxed text-sm">
+                            Mô phỏng hiện tượng nhiễm điện do hưởng ứng và do tiếp xúc.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row gap-8 items-start max-w-5xl w-full">
+                        
+                        {/* Simulation Canvas */}
+                        <div className="relative w-full lg:w-2/3 h-[500px] bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden flex justify-center items-end pb-10">
+                            
+                            <div className="absolute inset-0 opacity-5 pointer-events-none" 
+                                style={{backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px'}}>
+                            </div>
+
+                            <svg viewBox="0 0 400 500" className="w-full h-full max-w-[400px]">
+                                {/* Jar */}
+                                <path d="M 120 180 L 120 450 Q 120 480 200 480 Q 280 480 280 450 L 280 180 Z" 
+                                      fill="rgba(220, 240, 255, 0.3)" stroke="#94a3b8" strokeWidth="2" />
+                                <ellipse cx="200" cy="180" rx="80" ry="20" fill="rgba(200, 230, 255, 0.4)" stroke="#94a3b8" strokeWidth="2"/>
+                                <rect x="180" y="160" width="40" height="40" fill="#475569" rx="2" />
+                                <rect x="195" y="100" width="10" height="200" fill="#cbd5e1" stroke="#64748b" />
+
+                                {/* Gold Leaves */}
+                                <g transform="translate(200, 300)">
+                                    <g transform={`rotate(-${currentAngle})`}>
+                                        <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2" className="origin-top transition-transform duration-300" />
+                                    </g>
+                                    <g transform={`rotate(${currentAngle})`}>
+                                        <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2" className="origin-top transition-transform duration-300" />
+                                    </g>
+                                </g>
+
+                                {/* Sphere */}
+                                <circle cx="200" cy="80" r="30" fill="url(#sphereGradient)" stroke="#94a3b8" />
+                                <defs>
+                                    <radialGradient id="sphereGradient" cx="30%" cy="30%">
+                                        <stop offset="0%" stopColor="#f1f5f9" />
+                                        <stop offset="100%" stopColor="#64748b" />
+                                    </radialGradient>
+                                </defs>
+
+                                {/* Charge Signs on Sphere */}
+                                {Math.abs(electroscopeCharge) > 5 && (
+                                    <text x="200" y="90" fontSize="24" fill={electroscopeCharge > 0 ? "#dc2626" : "#2563eb"} fontWeight="bold" textAnchor="middle">
+                                        {electroscopeCharge > 0 ? '+' : '−'}
+                                    </text>
+                                )}
+
+                                {/* Wand */}
+                                <g transform={`translate(${wandSvgX}, 60)`} className="transition-transform duration-75">
+                                    <rect x="0" y="0" width="200" height="40" rx="20" 
+                                        fill={wandPolarity === 'positive' ? '#fee2e2' : '#dbeafe'} 
+                                        stroke={wandPolarity === 'positive' ? '#fca5a5' : '#93c5fd'} strokeWidth="2" />
+                                    
+                                    <path d="M 0 0 L 40 0 L 40 40 L 0 40 A 20 20 0 0 1 0 0" 
+                                        fill={wandPolarity === 'positive' ? '#ef4444' : '#3b82f6'} />
+                                    
+                                    <text x="12" y="27" fontSize="20" fill="white" fontWeight="bold">
+                                        {wandPolarity === 'positive' ? '+' : '−'}
+                                    </text>
+
+                                    {isTouching && (
+                                        <circle cx="0" cy="20" r="15" fill="yellow" opacity="0.6" className="animate-ping" />
+                                    )}
+                                </g>
+
+                                {/* Labels */}
+                                {showLabels && (
+                                    <g>
+                                        <Label x={168} y={70} text="Quả cầu" align="left" />
+                                        <Label x={282} y={350} text="Bình thủy tinh" align="right" />
+                                        <Label x={200} y={380} text="Lá vàng" align="right" />
+                                    </g>
+                                )}
+                            </svg>
                         </div>
-                        <div className="flex gap-3">
-                            <div className="font-bold text-slate-400">3</div>
-                            <p>Chạm vào quả cầu để truyền điện tích và xem hai lá kim loại <strong>đẩy nhau</strong>.</p>
+
+                        {/* Controls Panel */}
+                        <div className="w-full lg:w-1/3 flex flex-col gap-6">
+                            <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="font-bold text-lg text-slate-800">Điều khiển</h2>
+                                    <button onClick={() => setShowHelp(true)} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full hover:bg-indigo-100">
+                                        ? Hướng dẫn
+                                    </button>
+                                </div>
+
+                                <div className="mb-6 flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                    <span className="text-sm font-semibold text-slate-700">Hiện tên bộ phận</span>
+                                    <button 
+                                        onClick={() => setShowLabels(!showLabels)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showLabels ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showLabels ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+
+                                <div className="mb-6">
+                                    <div className="flex justify-between mb-2">
+                                        <label className="font-semibold text-sm text-slate-600">Khoảng cách</label>
+                                        <span className={`text-xs font-mono px-2 py-1 rounded transition-colors ${isTouching ? 'bg-green-100 text-green-700 font-bold' : 'bg-slate-100'}`}>
+                                            {isTouching ? 'ĐANG CHẠM' : wandPosition}
+                                        </span>
+                                    </div>
+                                    <input 
+                                        type="range" min="0" max="100" value={wandPosition} 
+                                        onChange={(e) => setWandPosition(Number(e.target.value))}
+                                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                    />
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="font-semibold text-sm text-slate-600 block mb-2">Loại điện tích</label>
+                                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                                        <button onClick={() => setWandPolarity('negative')} className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${wandPolarity === 'negative' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>
+                                            Âm (−)
+                                        </button>
+                                        <button onClick={() => setWandPolarity('positive')} className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${wandPolarity === 'positive' ? 'bg-white shadow text-red-600' : 'text-slate-500'}`}>
+                                            Dương (+)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button onClick={handleReset} className="w-full py-3 bg-slate-800 text-white rounded-lg font-semibold hover:bg-slate-700 transition-colors">
+                                    Nối đất (Reset)
+                                </button>
+                            </div>
+
+                            <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 text-sm text-blue-800">
+                                <h3 className="font-bold text-blue-900 mb-2">Trạng thái</h3>
+                                <ul className="space-y-1">
+                                    <li>• Điện tích: {Math.abs(electroscopeCharge) < 5 ? 'Trung hòa' : 'Đang nhiễm điện'}</li>
+                                    <li>• Góc mở lá: {currentAngle.toFixed(1)}°</li>
+                                </ul>
+                            </div>
                         </div>
-                        <div className="flex gap-3">
-                            <div className="font-bold text-slate-400">4</div>
-                            <p>Nhấn nút <strong>Nối đất (Reset)</strong> để trung hòa điện tích.</p>
-                        </div>
-                        </div>
-                        <button 
-                        onClick={() => setShowHelp(false)}
-                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-200"
-                        >
-                        Bắt đầu
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ElectroscopeSim />);
+    </script>
+</body>
+</html>
