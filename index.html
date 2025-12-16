@@ -1,349 +1,370 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Electroscope Simulator</title>
-  <style>
-    :root{
-      --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#475569;
-      --border:#e2e8f0; --blue:#2563eb; --red:#dc2626; --gold:#fbbf24;
-      --shadow:0 10px 25px rgba(15,23,42,.08); --radius:16px;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text)}
-    .wrap{max-width:1100px;margin:0 auto;padding:18px}
-    .hero{text-align:center;margin:8px 0 14px}
-    .hero h1{margin:0 0 6px;font-size:28px}
-    .hero p{margin:0;color:var(--muted);line-height:1.5}
-    .grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start}
-    @media (max-width:980px){.grid{grid-template-columns:1fr}}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-    .sim{
-      position:relative;height:520px;display:flex;align-items:flex-end;justify-content:center;
-      padding:12px 8px 14px;
-      background: radial-gradient(rgba(15,23,42,.06) 1px, transparent 1px) 0 0 / 22px 22px, var(--card);
-    }
-    .panel{padding:16px}
-    .panel h2{margin:0 0 10px;font-size:16px}
-    .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
-    .pill{
-      font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
-      font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);
-      background:#f1f5f9;color:var(--muted);white-space:nowrap;
-    }
-    .pill.ok{background:#dcfce7;border-color:#86efac;color:#166534;font-weight:800}
-    input[type="range"]{width:100%}
-    .seg{display:flex;gap:8px;background:#f1f5f9;border:1px solid var(--border);padding:6px;border-radius:12px}
-    .seg button{
-      flex:1;border:0;background:transparent;padding:10px;border-radius:10px;cursor:pointer;
-      font-weight:800;color:var(--muted);
-    }
-    .seg button.active{background:var(--card);box-shadow:0 6px 14px rgba(15,23,42,.08)}
-    .seg button.neg.active{color:var(--blue)}
-    .seg button.pos.active{color:var(--red)}
-    .btn{
-      width:100%;padding:12px 14px;border-radius:12px;border:1px solid #0f172a;background:#0f172a;
-      color:#fff;font-weight:900;cursor:pointer;
-    }
-    .btn:hover{filter:brightness(1.05)}
-    .status{margin-top:12px;background:#eff6ff;border:1px solid #dbeafe;color:#1e3a8a;border-radius:var(--radius);padding:14px 16px}
-    .status ul{margin:8px 0 0;padding:0 0 0 18px}
-    .status li{margin:6px 0}
-    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-      background:rgba(2,6,23,.55);backdrop-filter:blur(6px);padding:18px;z-index:9999}
-    .modal.open{display:flex}
-    .modal-card{
-      max-width:640px;width:100%;background:var(--card);border:1px solid var(--border);
-      border-radius:20px;box-shadow:0 25px 60px rgba(0,0,0,.2);padding:18px;
-    }
-    .modal-card h3{margin:0 0 10px;font-size:20px}
-    .modal-card p{margin:6px 0;color:var(--muted)}
-    .modal-card .btn2{margin-top:12px;width:100%;padding:12px 14px;border-radius:12px;border:0;background:var(--blue);color:#fff;font-weight:900;cursor:pointer}
-    .modal-card .btn2:hover{filter:brightness(1.05)}
-    noscript{
-      display:block;margin:10px auto;max-width:900px;background:#fff7ed;border:1px solid #fed7aa;
-      padding:12px 14px;border-radius:12px;color:#7c2d12;
-    }
-  </style>
-</head>
+import React, { useEffect, useMemo, useState } from "react";
 
-<body>
-  <noscript>
-    JavaScript is disabled, so the simulation cannot run. Please enable JavaScript and reload the page.
-  </noscript>
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
-  <div class="modal open" id="helpModal" role="dialog" aria-modal="true">
-    <div class="modal-card">
-      <h3>⚡ How to Use</h3>
-      <p><b>1)</b> Choose the wand charge type (Negative / Positive).</p>
-      <p><b>2)</b> Drag the distance slider to <b>0</b> to touch the metal sphere.</p>
-      <p><b>3)</b> When touching, charge transfers → the two gold leaves repel and spread apart.</p>
-      <p><b>4)</b> Press <b>Ground (Reset)</b> to neutralize the electroscope.</p>
-      <button class="btn2" id="startBtn" type="button">Start</button>
-    </div>
-  </div>
+const ElectroscopeSim = () => {
+  // 0 = touching, 100 = far away
+  const [wandPosition, setWandPosition] = useState(100);
+  const [wandPolarity, setWandPolarity] = useState("negative"); // 'positive' | 'negative'
+  const [storedCharge, setStoredCharge] = useState(0); // -100..100
+  const [showHelp, setShowHelp] = useState(true);
+  const [showLabels, setShowLabels] = useState(false);
 
-  <div class="wrap">
-    <div class="hero">
-      <h1>Electroscope Simulator</h1>
-      <p>
-        An electroscope detects electric charge. Touch the sphere to transfer charge and observe leaf repulsion.
-      </p>
-    </div>
+  // Visual / model constants
+  const MAX_LEAF_ANGLE = 45; // degrees
+  const TOUCH_THRESHOLD = 2; // slider units
+  const MAX_TRANSFERABLE = 80; // max |charge| via conduction
+  const STEP_PER_TICK = 5; // how fast charge changes when touching
+  const TICK_MS = 50;
 
-    <div class="grid">
-      <!-- SIM -->
-      <div class="card sim">
-        <svg viewBox="0 0 400 500" width="100%" height="100%" style="max-width:420px" aria-label="Electroscope SVG">
-          <defs>
-            <radialGradient id="sphereGradient" cx="30%" cy="30%">
-              <stop offset="0%" stop-color="#f1f5f9"></stop>
-              <stop offset="100%" stop-color="#64748b"></stop>
-            </radialGradient>
-          </defs>
+  // Optional: tiny leakage back to neutral when not touching
+  const ENABLE_LEAK = false;
+  const LEAK_STEP = 1;
 
-          <!-- Glass jar -->
-          <path d="M 120 180 L 120 450 Q 120 480 200 480 Q 280 480 280 450 L 280 180 Z"
-                fill="rgba(220, 240, 255, 0.3)" stroke="#94a3b8" stroke-width="2"></path>
-          <ellipse cx="200" cy="180" rx="80" ry="20"
-                   fill="rgba(200, 230, 255, 0.4)" stroke="#94a3b8" stroke-width="2"></ellipse>
+  const isTouching = wandPosition <= TOUCH_THRESHOLD;
 
-          <!-- Rubber stopper -->
-          <rect x="180" y="160" width="40" height="40" fill="#475569" rx="2"></rect>
+  // Wand X mapping inside SVG
+  const wandSvgX = useMemo(() => 230 + wandPosition * 2.2, [wandPosition]);
 
-          <!-- Metal rod -->
-          <rect x="195" y="100" width="10" height="200" fill="#cbd5e1" stroke="#64748b"></rect>
+  // Run a small "physics" tick
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStoredCharge((prev) => {
+        let next = prev;
 
-          <!-- Leaves group -->
-          <g id="leaves" transform="translate(200, 300)">
-            <g id="leafLeft">
-              <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2"></rect>
-              <text id="signLeft" x="-15" y="60" font-size="20" font-weight="900" opacity="0">+</text>
-            </g>
-            <g id="leafRight">
-              <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2"></rect>
-              <text id="signRight" x="5" y="60" font-size="20" font-weight="900" opacity="0">+</text>
-            </g>
-          </g>
+        if (isTouching) {
+          const target = wandPolarity === "positive" ? MAX_TRANSFERABLE : -MAX_TRANSFERABLE;
+          if (next < target) next = Math.min(next + STEP_PER_TICK, target);
+          if (next > target) next = Math.max(next - STEP_PER_TICK, target);
+        } else if (ENABLE_LEAK) {
+          if (next > 0) next = Math.max(0, next - LEAK_STEP);
+          if (next < 0) next = Math.min(0, next + LEAK_STEP);
+        }
 
-          <!-- Metal sphere -->
-          <circle cx="200" cy="80" r="30" fill="url(#sphereGradient)" stroke="#94a3b8"></circle>
-          <text id="sphereSign" x="188" y="90" font-size="24" font-weight="900" opacity="0">+</text>
+        return next === prev ? prev : next;
+      });
+    }, TICK_MS);
 
-          <!-- Wand -->
-          <g id="wand" transform="translate(450, 60)">
-            <rect id="wandBody" x="0" y="0" width="200" height="40" rx="20"
-                  fill="#dbeafe" stroke="#93c5fd" stroke-width="2"></rect>
-            <path id="wandCap" d="M 0 0 L 40 0 L 40 40 L 0 40 A 20 20 0 0 1 0 0" fill="#3b82f6"></path>
-            <text id="wandSign1" x="8" y="26" font-size="20" fill="#fff" font-weight="900">−</text>
-            <text id="wandSign2" x="22" y="26" font-size="20" fill="#fff" font-weight="900">−</text>
-            <circle id="touchGlow" cx="0" cy="20" r="15" fill="yellow" opacity="0"></circle>
-          </g>
-        </svg>
-      </div>
+    return () => clearInterval(id);
+  }, [isTouching, wandPolarity]);
 
-      <!-- CONTROLS -->
-      <div class="card panel">
-        <div class="row">
-          <h2>Controls</h2>
-          <button id="helpBtn" class="pill" type="button">? Help</button>
-        </div>
+  // Induction: stronger when closer, weaker when far
+  const inductionStrength = useMemo(() => {
+    const closeness = clamp((100 - wandPosition) / 100, 0, 1);
+    return closeness; // 0..1
+  }, [wandPosition]);
 
-        <div class="row" style="margin-top:0;">
-          <div style="width:100%;">
-            <div class="row" style="margin:0 0 6px;">
-              <div style="font-weight:900; color:var(--muted); font-size:13px;">Distance</div>
-              <div class="pill" id="distancePill">DISTANCE: 100</div>
+  // Angle calculation: stored charge dominates, induction adds a small extra spread
+  const leafAngle = useMemo(() => {
+    const chargeAngle = (Math.abs(storedCharge) / 100) * MAX_LEAF_ANGLE;
+
+    // Induction angle is modest; if already charged, it nudges a bit rather than overriding.
+    const inductionAngle = inductionStrength * 12; // tweakable
+
+    const combined = chargeAngle + (storedCharge === 0 ? inductionAngle * 0.7 : inductionAngle * 0.25);
+    return clamp(combined, 0, MAX_LEAF_ANGLE);
+  }, [storedCharge, inductionStrength]);
+
+  const handleGround = () => {
+    setStoredCharge(0);
+  };
+
+  const Label = ({ x, y, text, align = "left" }) => (
+    <g style={{ pointerEvents: "none" }}>
+      <circle cx={x} cy={y} r="3" fill="#3b82f6" />
+      <line
+        x1={x}
+        y1={y}
+        x2={align === "left" ? x - 40 : x + 40}
+        y2={y}
+        stroke="#3b82f6"
+        strokeWidth="1"
+      />
+      <text
+        x={align === "left" ? x - 45 : x + 45}
+        y={y + 4}
+        textAnchor={align === "left" ? "end" : "start"}
+        fontSize="14"
+        fill="#1e293b"
+        fontWeight="600"
+      >
+        {text}
+      </text>
+    </g>
+  );
+
+  const chargeSymbol = storedCharge > 0 ? "+" : "−";
+  const chargeColor = storedCharge > 0 ? "#dc2626" : "#2563eb";
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4 font-sans text-slate-800 relative">
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 border border-slate-200">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="bg-indigo-100 text-indigo-600 p-2 rounded-lg">⚡</span>
+              How to Use
+            </h2>
+            <div className="space-y-4 text-slate-600 mb-8">
+              <div className="flex gap-3">
+                <div className="font-bold text-slate-400">1</div>
+                <p>
+                  Select the <strong>Wand Charge Type</strong> (Positive or Negative).
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <div className="font-bold text-slate-400">2</div>
+                <p>
+                  Drag the <strong>Position Control</strong> slider left to move the wand closer.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <div className="font-bold text-slate-400">3</div>
+                <p>
+                  Touch the sphere to transfer charge. The gold leaves <strong>repel</strong> because like charges repel.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <div className="font-bold text-slate-400">4</div>
+                <p>
+                  Click <strong>Ground (Reset)</strong> to discharge the electroscope.
+                </p>
+              </div>
             </div>
-            <input id="distance" type="range" min="0" max="100" value="100" />
-            <div style="margin-top:6px; color:#94a3b8; font-size:12px;">Drag to 0 to touch the sphere.</div>
+            <button
+              onClick={() => setShowHelp(false)}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-200"
+            >
+              Continue
+            </button>
           </div>
         </div>
+      )}
 
-        <div style="margin-top:14px;">
-          <div style="font-weight:900; color:var(--muted); font-size:13px; margin-bottom:8px;">Wand charge</div>
-          <div class="seg">
-            <button id="negBtn" class="neg active" type="button">Negative (−)</button>
-            <button id="posBtn" class="pos" type="button">Positive (+)</button>
+      <div className="max-w-3xl w-full mb-6 text-center">
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Electroscope Simulator</h1>
+        <p className="text-slate-600 leading-relaxed">
+          An electroscope detects electric charge. When a charged object touches the metal sphere, charge spreads
+          down the rod to the gold leaves. Since like charges repel, the leaves push apart.
+        </p>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-8 items-start max-w-5xl w-full">
+        <div className="relative w-full lg:w-2/3 h-[500px] bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden flex justify-center items-end pb-10">
+          <div
+            className="absolute inset-0 opacity-5 pointer-events-none"
+            style={{
+              backgroundImage: "radial-gradient(#000 1px, transparent 1px)",
+              backgroundSize: "20px 20px",
+            }}
+          />
+
+          <svg viewBox="0 0 400 500" className="w-full h-full max-w-[400px]">
+            {/* Glass Jar */}
+            <path
+              d="M 120 180 L 120 450 Q 120 480 200 480 Q 280 480 280 450 L 280 180 Z"
+              fill="rgba(220, 240, 255, 0.3)"
+              stroke="#94a3b8"
+              strokeWidth="2"
+            />
+            <ellipse
+              cx="200"
+              cy="180"
+              rx="80"
+              ry="20"
+              fill="rgba(200, 230, 255, 0.4)"
+              stroke="#94a3b8"
+              strokeWidth="2"
+            />
+
+            {/* Stopper */}
+            <rect x="180" y="160" width="40" height="40" fill="#475569" rx="2" />
+
+            {/* Rod */}
+            <rect x="195" y="100" width="10" height="200" fill="#cbd5e1" stroke="#64748b" />
+
+            {/* Leaves */}
+            <g transform="translate(200, 300)">
+              <g transform={`rotate(-${leafAngle})`}>
+                <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2" />
+                {Math.abs(storedCharge) > 10 && (
+                  <text x="-15" y="60" fontSize="20" fill={chargeColor} fontWeight="bold">
+                    {chargeSymbol}
+                  </text>
+                )}
+              </g>
+              <g transform={`rotate(${leafAngle})`}>
+                <rect x="-2" y="0" width="4" height="100" fill="#fbbf24" stroke="#d97706" rx="2" />
+                {Math.abs(storedCharge) > 10 && (
+                  <text x="5" y="60" fontSize="20" fill={chargeColor} fontWeight="bold">
+                    {chargeSymbol}
+                  </text>
+                )}
+              </g>
+            </g>
+
+            {/* Sphere */}
+            <defs>
+              <radialGradient id="sphereGradient" cx="30%" cy="30%">
+                <stop offset="0%" stopColor="#f1f5f9" />
+                <stop offset="100%" stopColor="#64748b" />
+              </radialGradient>
+            </defs>
+            <circle cx="200" cy="80" r="30" fill="url(#sphereGradient)" stroke="#94a3b8" />
+
+            {Math.abs(storedCharge) > 5 && (
+              <text x="188" y="90" fontSize="24" fill={chargeColor} fontWeight="bold">
+                {chargeSymbol}
+              </text>
+            )}
+
+            {/* Wand */}
+            <g transform={`translate(${wandSvgX}, 60)`}>
+              <rect
+                x="0"
+                y="0"
+                width="200"
+                height="40"
+                rx="20"
+                fill={wandPolarity === "positive" ? "#fee2e2" : "#dbeafe"}
+                stroke={wandPolarity === "positive" ? "#fca5a5" : "#93c5fd"}
+                strokeWidth="2"
+              />
+              <path
+                d="M 0 0 L 40 0 L 40 40 L 0 40 A 20 20 0 0 1 0 0"
+                fill={wandPolarity === "positive" ? "#ef4444" : "#3b82f6"}
+              />
+              <text x="8" y="26" fontSize="20" fill="white" fontWeight="bold">
+                {wandPolarity === "positive" ? "+" : "−"}
+              </text>
+              <text x="22" y="26" fontSize="20" fill="white" fontWeight="bold">
+                {wandPolarity === "positive" ? "+" : "−"}
+              </text>
+
+              {isTouching && <circle cx="0" cy="20" r="15" fill="yellow" opacity="0.6" />}
+            </g>
+
+            {/* Labels */}
+            {showLabels && (
+              <g>
+                <Label x={168} y={70} text="Metal Sphere" align="left" />
+                <Label x={282} y={350} text="Glass Jar" align="right" />
+                <Label x={200} y={380} text="Gold Leaves" align="right" />
+              </g>
+            )}
+          </svg>
+        </div>
+
+        {/* Controls */}
+        <div className="w-full lg:w-1/3 flex flex-col gap-6">
+          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <span className="w-2 h-6 bg-slate-800 rounded-sm"></span> Controls
+              </h2>
+              <button
+                onClick={() => setShowHelp(true)}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-full transition-colors"
+              >
+                ? Instructions
+              </button>
+            </div>
+
+            <div className="mb-6 flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <span className="text-sm font-semibold text-slate-700">Show Component Labels</span>
+              <button
+                onClick={() => setShowLabels((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  showLabels ? "bg-indigo-600" : "bg-slate-300"
+                }`}
+                aria-label="Toggle component labels"
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    showLabels ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex justify-between mb-2">
+                <label className="font-semibold text-sm text-slate-600">Position Control</label>
+                <span
+                  className={`text-xs font-mono px-2 py-1 rounded transition-colors ${
+                    isTouching ? "bg-green-100 text-green-700 font-bold" : "bg-slate-100"
+                  }`}
+                >
+                  {isTouching ? "TOUCHING" : "DISTANCE: " + wandPosition}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={wandPosition}
+                onChange={(e) => setWandPosition(Number(e.target.value))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                aria-label="Wand distance slider"
+              />
+              <p className="text-xs text-slate-400 mt-2">Drag slider to 0 to touch the sphere.</p>
+            </div>
+
+            <div className="mb-6">
+              <label className="font-semibold text-sm text-slate-600 block mb-2">Wand Charge Type</label>
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setWandPolarity("negative")}
+                  className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                    wandPolarity === "negative"
+                      ? "bg-white shadow text-blue-600"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Negative (−)
+                </button>
+                <button
+                  onClick={() => setWandPolarity("positive")}
+                  className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                    wandPolarity === "positive"
+                      ? "bg-white shadow text-red-600"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Positive (+)
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={handleGround}
+              className="w-full py-3 bg-slate-800 text-white rounded-lg font-semibold hover:bg-slate-700 transition-colors"
+            >
+              Ground (Reset)
+            </button>
           </div>
-        </div>
 
-        <div style="margin-top:14px;">
-          <button id="resetBtn" class="btn" type="button">Ground (Reset)</button>
-        </div>
-
-        <div class="status">
-          <b>Current state</b>
-          <ul>
-            <li><span id="chargeText">Charge: Neutral</span></li>
-            <li><span id="leafText">Leaves: Closed</span></li>
-          </ul>
-        </div>
-
-        <div style="margin-top:12px; color:#94a3b8; font-size:12px;">
-          Tip: If you still see a blank page, open DevTools (F12) → Console to check for JavaScript errors.
-          This version avoids external dependencies, so it should be very reliable on school networks.
+          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+            <h3 className="font-bold text-blue-900 mb-2">Current State</h3>
+            <ul className="space-y-2 text-sm text-blue-800">
+              <li className="flex items-start gap-2">
+                <span className="mt-1 block min-w-[8px] min-h-[8px] rounded-full bg-blue-400"></span>
+                <span>
+                  <strong>Charge Level:</strong> {Math.abs(storedCharge) < 5 ? "Neutral" : "Charged"}
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 block min-w-[8px] min-h-[8px] rounded-full bg-blue-400"></span>
+                <span>
+                  <strong>Leaf Position:</strong> {leafAngle < 2 ? "Vertical (Relaxed)" : "Separated (Repelling)"}
+                </span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  );
+};
 
-  <script>
-    // ===== Stable + fast engine: no frameworks, no external CDN =====
-
-    // State
-    let wandPosition = 100;            // 0..100 (0 = touching)
-    let wandPolarity = "negative";     // "negative" | "positive"
-    let electroscopeCharge = 0;        // -80..+80
-
-    // Constants
-    const MAX_LEAF_ANGLE = 45;
-    const TOUCH_THRESHOLD = 2;
-    const CHARGE_MAGNITUDE = 80;
-    const CHARGE_STEP = 5;
-
-    // DOM
-    const distance = document.getElementById("distance");
-    const distancePill = document.getElementById("distancePill");
-    const negBtn = document.getElementById("negBtn");
-    const posBtn = document.getElementById("posBtn");
-    const resetBtn = document.getElementById("resetBtn");
-
-    const leafLeft = document.getElementById("leafLeft");
-    const leafRight = document.getElementById("leafRight");
-
-    const signLeft = document.getElementById("signLeft");
-    const signRight = document.getElementById("signRight");
-    const sphereSign = document.getElementById("sphereSign");
-
-    const wand = document.getElementById("wand");
-    const wandBody = document.getElementById("wandBody");
-    const wandCap = document.getElementById("wandCap");
-    const wandSign1 = document.getElementById("wandSign1");
-    const wandSign2 = document.getElementById("wandSign2");
-    const touchGlow = document.getElementById("touchGlow");
-
-    const chargeText = document.getElementById("chargeText");
-    const leafText = document.getElementById("leafText");
-
-    const helpModal = document.getElementById("helpModal");
-    const startBtn = document.getElementById("startBtn");
-    const helpBtn = document.getElementById("helpBtn");
-
-    // Utils
-    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-    const isTouchingNow = () => wandPosition <= TOUCH_THRESHOLD;
-
-    function computeAngle() {
-      const inductionEffect = ((100 - wandPosition) / 100) * 20;
-      const permanentAngle = (Math.abs(electroscopeCharge) / 100) * MAX_LEAF_ANGLE;
-
-      let angle = permanentAngle;
-      if (electroscopeCharge === 0 && wandPosition < 60) angle = inductionEffect * 0.5;
-      return clamp(angle, 0, MAX_LEAF_ANGLE);
-    }
-
-    function stepPhysics() {
-      if (!isTouchingNow()) return;
-
-      if (wandPolarity === "positive" && electroscopeCharge < CHARGE_MAGNITUDE) {
-        electroscopeCharge = Math.min(electroscopeCharge + CHARGE_STEP, CHARGE_MAGNITUDE);
-      }
-      if (wandPolarity === "negative" && electroscopeCharge > -CHARGE_MAGNITUDE) {
-        electroscopeCharge = Math.max(electroscopeCharge - CHARGE_STEP, -CHARGE_MAGNITUDE);
-      }
-    }
-
-    function render() {
-      const touching = isTouchingNow();
-      const angle = computeAngle();
-
-      // Leaves rotation
-      leafLeft.setAttribute("transform", `rotate(${-angle})`);
-      leafRight.setAttribute("transform", `rotate(${angle})`);
-
-      // Wand position (same mapping you used: 230..450)
-      const wandSvgX = 230 + (wandPosition * 2.2);
-      wand.setAttribute("transform", `translate(${wandSvgX}, 60)`);
-
-      // Wand styling & symbols
-      const isPos = wandPolarity === "positive";
-      wandBody.setAttribute("fill", isPos ? "#fee2e2" : "#dbeafe");
-      wandBody.setAttribute("stroke", isPos ? "#fca5a5" : "#93c5fd");
-      wandCap.setAttribute("fill", isPos ? "#ef4444" : "#3b82f6");
-      wandSign1.textContent = isPos ? "+" : "−";
-      wandSign2.textContent = isPos ? "+" : "−";
-
-      // Touch glow
-      touchGlow.setAttribute("opacity", touching ? "0.65" : "0");
-
-      // Charge signs
-      const show = Math.abs(electroscopeCharge) > 10;
-      const sign = electroscopeCharge > 0 ? "+" : "−";
-      const signColor = electroscopeCharge > 0
-        ? getComputedStyle(document.documentElement).getPropertyValue("--red").trim()
-        : getComputedStyle(document.documentElement).getPropertyValue("--blue").trim();
-
-      signLeft.textContent = sign;
-      signRight.textContent = sign;
-      sphereSign.textContent = sign;
-
-      signLeft.setAttribute("fill", signColor);
-      signRight.setAttribute("fill", signColor);
-      sphereSign.setAttribute("fill", signColor);
-
-      signLeft.setAttribute("opacity", show ? "1" : "0");
-      signRight.setAttribute("opacity", show ? "1" : "0");
-      sphereSign.setAttribute("opacity", Math.abs(electroscopeCharge) > 5 ? "1" : "0");
-
-      // UI text
-      distancePill.textContent = touching ? "TOUCHING" : `DISTANCE: ${wandPosition}`;
-      distancePill.classList.toggle("ok", touching);
-
-      chargeText.textContent = `Charge: ${Math.abs(electroscopeCharge) < 5 ? "Neutral" : "Charged"}`;
-      leafText.textContent = `Leaves: ${angle < 2 ? "Closed" : "Separated (Repelling)"}`;
-    }
-
-    // Events
-    distance.addEventListener("input", (e) => {
-      wandPosition = Number(e.target.value);
-      render(); // instant feedback
-    });
-
-    negBtn.addEventListener("click", () => {
-      wandPolarity = "negative";
-      negBtn.classList.add("active");
-      posBtn.classList.remove("active");
-      render();
-    });
-
-    posBtn.addEventListener("click", () => {
-      wandPolarity = "positive";
-      posBtn.classList.add("active");
-      negBtn.classList.remove("active");
-      render();
-    });
-
-    resetBtn.addEventListener("click", () => {
-      electroscopeCharge = 0;
-      render();
-    });
-
-    startBtn.addEventListener("click", () => helpModal.classList.remove("open"));
-    helpBtn.addEventListener("click", () => helpModal.classList.add("open"));
-
-    // Main loop (light + stable)
-    function tick(){
-      stepPhysics();
-      render();
-      requestAnimationFrame(tick);
-    }
-
-    // Init
-    render();
-    requestAnimationFrame(tick);
-  </script>
-</body>
-</html>
+export default ElectroscopeSim;
